@@ -2,7 +2,7 @@ import {TileDrag} from './drag.js?v=20261021-joker1';
 import {
   Api,
   actionId
-} from './api.js?v=20261021-joker1';
+} from './api.js?v=20261024-chat1';
 import {Editor} from './board.js?v=20261024-palette1';
 import {
   home,
@@ -13,6 +13,7 @@ import {
   esc,
   btn
 } from './views.js?v=20261024-palette1';
+import {Chat} from './chat.js?v=20261024-chat1';
 
 const api = new Api();
 const main = document.querySelector('#main'),
@@ -32,6 +33,8 @@ let nickname = '',
   modalReturn = null,
   lastError = '';
 let code = localStorage.getItem(storageKey) || '';
+// 채팅 전송은 게임 요청(mutate)의 busy·pending·revision 흐름을 거치지 않는다.
+const chat = new Chat((text, since) => api.post({action: 'chat', code, actionId: actionId(), text, chatSince: since}));
 
 function online(ok) {
   connection.textContent = ok ? '연결됨' : '연결 확인 중';
@@ -124,6 +127,7 @@ function accept(next, force = false) {
   const changed = !state || next.revision !== state.revision || next.code !== state.code;
   state = next;
   code = state.code;
+  chat.update(state);
   localStorage.setItem(storageKey, code);
   if (state.status === 'playing') {
     if (force || !editor || changed) {
@@ -172,7 +176,7 @@ async function refresh() {
     if (pending) {
       await sendPending();
     } else if (code) {
-      const next = await api.state(code);
+      const next = await api.state(code, chat.lastId);
       if (!pending && !busy) accept(next);
     }
   } catch (error) {
@@ -201,6 +205,7 @@ function leaveLocal() {
   pending = null;
   lastError = '';
   localStorage.removeItem(storageKey);
+  chat.update(null);
   render();
   if (location.search) history.replaceState(null, '', location.pathname);
 }
@@ -253,7 +258,7 @@ async function sendPending() {
 async function forceRefresh() {
   if (!code) return;
   try {
-    accept(await api.state(code), true);
+    accept(await api.state(code, chat.lastId), true);
   } catch (error) {
     showError(error.message);
   }
@@ -388,7 +393,7 @@ document.querySelector('.brand').addEventListener('click',e=>{
   if(state){e.preventDefault();if(state.status==='playing')notice('진행 중인 게임이에요. 나가려면 먼저 게임 중단에 동의해 주세요.');else confirmAction('방에서 나갈까요?','현재 방을 나가고 시작 화면으로 이동해요.','confirm-leave','방 나가기');}
 });
 async function boot(){
-  try {await api.init();online(true);if(code){try{accept(await api.state(code),true);}catch(error){if(['missing','membership'].includes(error.kind))leaveLocal();else{render();showError(error.message);online(false);}}}else render();}
+  try {await api.init();online(true);if(code){try{accept(await api.state(code,chat.lastId),true);}catch(error){if(['missing','membership'].includes(error.kind))leaveLocal();else{render();showError(error.message);online(false);}}}else render();}
   catch(error){render();showError('서버 연결을 확인할 수 없어요. PHP 호스팅에서 실행 중인지 확인하고 새로고침해 주세요.');online(false);}
   schedulePoll();
 }

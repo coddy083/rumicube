@@ -36,8 +36,8 @@ export class Api {
     }
     return this.initializing;
   }
-  state(code) {
-    return this.call(`api/index.php?action=state&code=${encodeURIComponent(code)}`);
+  state(code, since = 0) {
+    return this.call(`api/index.php?action=state&code=${encodeURIComponent(code)}&since=${since}`);
   }
   async post(data) {
     if (!this.csrf) await this.init();

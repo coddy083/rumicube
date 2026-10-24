@@ -11,8 +11,8 @@ header('Cache-Control: no-store');
 <meta name="theme-color" content="#2456cc"><meta name="description" content="친구와 둘이, 셋이. 혼자라면 컴퓨터와 즐기는 숫자 타일 보드게임.">
 <title>타일클럽 — 한 판 할까?</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="assets/css/app.css?v=20261024-palette1">
-<script type="module" src="assets/js/main.js?v=20261024-palette1"></script>
+<link rel="stylesheet" href="assets/css/app.css?v=20261024-chat1">
+<script type="module" src="assets/js/main.js?v=20261024-chat1"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">본문으로 이동</a>

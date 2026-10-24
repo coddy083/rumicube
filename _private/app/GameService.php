@@ -61,10 +61,12 @@ final class GameService {
             }
             if (in_array($action, ['state', 'join'], true)) {
                 if ($room['status'] === 'playing' && $room['players'][$room['turn']]['bot'] && microtime(true) >= ($room['botDueAt'] ?? 0)) $this->computerTurn($room);
-                return $this->view($room, $pi);
+                return $this->view($room, $pi, is_int($data['chatSince'] ?? null) ? $data['chatSince'] : 0);
             }
             $id = $data['actionId'] ?? '';
             ensure(is_string($id) && preg_match('/^[a-zA-Z0-9_-]{12,80}$/D', $id), '요청 ID가 필요해요.');
+            // 채팅은 게임 revision을 바꾸지 않는다. 편집 중인 차례가 채팅 때문에 충돌하거나 초기화되지 않게 한다.
+            if ($action === 'chat') { $this->chat($room, $pi, $id, $data['text'] ?? null); return $this->view($room, $pi, is_int($data['chatSince'] ?? null) ? $data['chatSince'] : 0); }
             $receiptKey = $room['players'][$pi]['id'] . ':' . $id;
             $fingerprint = hash('sha256', $action . json_encode($data, JSON_THROW_ON_ERROR));
             if (isset($room['receipts'][$receiptKey])) {
@@ -129,6 +131,20 @@ final class GameService {
             return $this->view($room, $pi) + ['ack' => $id];
         });
     }
+    private function chat(array &$room, int $pi, string $id, mixed $text): void {
+        ensure($room['mode'] === 'friends', '친구와 하는 방에서만 채팅할 수 있어요.');
+        ensure(is_string($text) && preg_match('//u', $text) === 1, '메시지를 확인해 주세요.');
+        $text = trim(preg_replace('/\s+/u', ' ', $text));
+        $length = preg_match_all('/./u', $text);
+        ensure($length >= 1 && $length <= 100 && !preg_match('/[\p{Cc}\p{Co}\p{Cs}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', $text), '메시지는 1~100자로 입력해 주세요.');
+        $p = $room['players'][$pi]; $aid = $p['id'] . ':' . $id; $messages = $room['chat'] ?? [];
+        foreach ($messages as $m) if (hash_equals($m['aid'], $aid)) return;
+        $recent = count(array_filter($messages, fn($m) => $m['by'] === $p['id'] && $m['at'] > time() - 10));
+        ensure($recent < 5, '메시지를 너무 빨리 보내고 있어요. 잠시 후 다시 보내 주세요.', 429, 'rate');
+        $room['chatSeq'] = ($room['chatSeq'] ?? 0) + 1;
+        $messages[] = ['id' => $room['chatSeq'], 'aid' => $aid, 'by' => $p['id'], 'name' => $p['name'], 'text' => $text, 'at' => time()];
+        $room['chat'] = array_slice($messages, -40);
+    }
     private function computerTurn(array &$room): void {
         $pi = $room['turn'];
         // AI에는 공개 게임판과 자신의 손패만 전달한다. 상대 손패나 더미 순서는 넘기지 않는다.
@@ -178,11 +194,14 @@ final class GameService {
         $room['status'] = 'finished'; $room['result'] = ['reason' => $reason, 'players' => $rows];
         $room['lastEvent'] = $reason === 'aborted' ? '모두 동의해 게임을 중단했어요.' : '게임이 끝났어요!';
     }
-    public function view(array $room, int $pi): array {
+    public function view(array $room, int $pi, int $chatSince = 0): array {
         $tiles = RuleValidator::tiles(); $me = $room['players'][$pi]; $players = [];
         foreach ($room['players'] as $p) $players[] = ['id' => $p['id'], 'name' => $p['name'], 'ready' => $p['ready'], 'registered' => $p['registered'], 'count' => count($p['rack']), 'bot' => $p['bot'], 'online' => $p['bot'] || (time() - $p['seenAt'] <= 15 && !$p['away']), 'rematch' => $p['rematch'], 'abort' => $p['abort']];
+        // 폴링마다 전체 기록을 보내지 않도록 클라이언트가 받은 다음 메시지만 돌려준다.
+        $chat = [];
+        foreach ($room['chat'] ?? [] as $m) if ($m['id'] > $chatSince) $chat[] = ['id' => $m['id'], 'by' => $m['by'], 'name' => $m['name'], 'text' => $m['text'], 'at' => $m['at']];
         $board = [];
         foreach ($room['board'] as $g) $board[] = ['id' => $g['id'], 'tiles' => array_map(fn($t) => $t + $tiles[$t['id']], $g['tiles'])];
-        return ['code' => $room['code'], 'mode' => $room['mode'], 'capacity' => $room['capacity'], 'status' => $room['status'], 'revision' => $room['revision'], 'hostId' => $room['hostId'], 'me' => $me['id'], 'players' => $players, 'rack' => array_map(fn($id) => $tiles[$id], $me['rack']), 'board' => $board, 'poolCount' => count($room['pool']), 'turnId' => $room['status'] === 'playing' ? $room['players'][$room['turn']]['id'] : null, 'turnNumber' => $room['turnNumber'], 'passes' => $room['passes'], 'result' => $room['result'], 'lastEvent' => $room['lastEvent']];
+        return ['code' => $room['code'], 'mode' => $room['mode'], 'capacity' => $room['capacity'], 'status' => $room['status'], 'revision' => $room['revision'], 'hostId' => $room['hostId'], 'me' => $me['id'], 'players' => $players, 'rack' => array_map(fn($id) => $tiles[$id], $me['rack']), 'board' => $board, 'poolCount' => count($room['pool']), 'turnId' => $room['status'] === 'playing' ? $room['players'][$room['turn']]['id'] : null, 'turnNumber' => $room['turnNumber'], 'passes' => $room['passes'], 'result' => $room['result'], 'lastEvent' => $room['lastEvent'], 'chatSeq' => $room['chatSeq'] ?? 0, 'chat' => $chat];
     }
 }

@@ -71,7 +71,7 @@ const source = name => fs.readFileSync(path.join(__dirname, '..', 'assets/js', n
     async state() { if (mock.stateFailure) throw new ApiError('offline', 'network', 0); return {code: 'ABC234', revision: mock.nextRevision, status: 'lobby'}; }
   }
   const context = {
-    Api: MockApi, TileDrag: class {cancel() {}},
+    Api: MockApi, TileDrag: class {cancel() {}}, Chat: class {lastId = 0; update() {}},
     document: {querySelector: key => elements[key], activeElement: null, hidden: false, addEventListener() {}, createElement: () => new Element()},
     window: {addEventListener() {}}, location: {pathname: '/', search: ''}, history: {replaceState() {}},
     localStorage: {getItem: key => data.get(key), setItem: (key, value) => data.set(key, value), removeItem: key => data.delete(key)},

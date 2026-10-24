@@ -36,6 +36,7 @@ try {
         });
     } else {
         $code = roomCode($method === 'GET' ? ($_GET['code'] ?? '') : ($data['code'] ?? ''));
+        if ($method === 'GET') $data = ['chatSince' => max(0, (int)filter_var($_GET['since'] ?? 0, FILTER_VALIDATE_INT, ['options' => ['default' => 0]]))];
         $result = $service->request($code, $auth->hash, $action, $data);
     }
     echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);

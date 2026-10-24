@@ -46,6 +46,18 @@ try {
     $r = $service->request($code, $b, 'ready', ['revision' => $r['revision'], 'actionId' => 'ready-request-0002']);
     $r = $service->request($code, $a, 'start', ['revision' => $r['revision'], 'actionId' => 'start-request-0001']);
     check($r['status'] === 'playing' && count($r['rack']) === 14 && $r['poolCount'] === 78, 'Two-player deal preserves tile counts');
+    $c = $service->request($code, $a, 'chat', ['actionId' => 'chat-request-0001', 'text' => "  안녕\n  하세요 👨‍👩‍👧 "]);
+    check($c['revision'] === $r['revision'] && $c['chatSeq'] === 1 && $c['chat'][0]['text'] === '안녕 하세요 👨‍👩‍👧', 'Chat keeps game revision and normalizes whitespace');
+    $c = $service->request($code, $a, 'chat', ['actionId' => 'chat-request-0001', 'text' => '안녕 하세요']);
+    check($c['chatSeq'] === 1, 'Chat retry with the same action ID is idempotent');
+    $seen = $service->request($code, $b, 'state', ['chatSince' => 1]);
+    check($seen['chatSeq'] === 1 && $seen['chat'] === [], 'State returns only chat messages after chatSince');
+    rejects(fn() => $service->request($code, $b, 'chat', ['actionId' => 'chat-request-0002', 'text' => '   ']), 'invalid');
+    rejects(fn() => $service->request($code, $b, 'chat', ['actionId' => 'chat-request-0003', 'text' => str_repeat('가', 101)]), 'invalid');
+    rejects(fn() => $service->request($code, $b, 'chat', ['actionId' => 'chat-request-0004', 'text' => "abc\u{202E}def"]), 'invalid');
+    for ($i = 0; $i < 5; $i++) $service->request($code, $b, 'chat', ['actionId' => 'chat-burst-000' . $i, 'text' => 'hi ' . $i]);
+    rejects(fn() => $service->request($code, $b, 'chat', ['actionId' => 'chat-burst-0009', 'text' => 'too fast']), 'rate');
+    check(!isset($service->request($code, $b, 'state', [])['chat'][0]['aid']), 'Chat view hides receipt keys');
     $store->transaction($code, function (&$r) {
         $r['turn'] = 0;
         $r['players'][0]['rack'] = ['red-10-0', 'blue-10-0', 'black-10-0', 'red-1-0'];
