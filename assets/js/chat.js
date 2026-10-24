@@ -8,7 +8,8 @@ export class Chat {
   names = new Map();
   lastId = 0;
   unread = 0;
-  sending = false;
+  pending = [];
+  queue = Promise.resolve();
   primed = false;
   previewTimer = null;
 
@@ -76,7 +77,10 @@ export class Chat {
     const read = Number(localStorage.getItem(this.readKey) || 0);
     for (const m of fresh) {
       this.lastId = m.id;
-      this.log.append(this.item(m));
+      // 서버가 확인한 내 메시지는 미리 띄워 둔 임시 표시를 대체한다.
+      const echo = m.by === this.me ? this.pending.findIndex(p => p.text === m.text) : -1;
+      if (echo >= 0) this.pending.splice(echo, 1)[0].li.remove();
+      this.log.insertBefore(this.item(m), this.pending[0]?.li || null);
     }
     while (this.log.children.length > 40) this.log.firstElementChild.remove();
     const incoming = fresh.filter(m => m.by !== this.me && m.id > read);
@@ -97,6 +101,7 @@ export class Chat {
     this.lastId = 0;
     this.unread = 0;
     this.primed = false;
+    this.pending = [];
     this.log.replaceChildren();
     this.renderBadge();
     this.preview.hidden = true;
@@ -148,22 +153,31 @@ export class Chat {
 
   scroll() { this.log.scrollTop = this.log.scrollHeight; }
 
-  async submit(raw) {
+  // 서버 응답을 기다리지 않고 바로 보여 준다. 전송은 보낸 순서대로 하나씩 처리한다.
+  submit(raw) {
     const text = raw.replace(/\s+/g, ' ').trim();
-    if (!text || this.sending) return;
+    if (!text) return;
     if (Array.from(text).length > MAX) return this.fail(`메시지는 ${MAX}자까지 보낼 수 있어요.`);
-    this.sending = true;
     this.error.hidden = true;
-    try {
-      const next = await this.send(text, this.lastId);
-      if (raw === this.input.value) this.input.value = '';
-      this.update(next);
-      this.markRead();
-    } catch (error) {
-      this.fail(error.message);
-    } finally {
-      this.sending = false;
-    }
+    if (raw === this.input.value) this.input.value = '';
+    const li = this.item({by: this.me, text});
+    li.classList.add('pending');
+    this.log.append(li);
+    this.scroll();
+    const entry = {text, li};
+    this.pending.push(entry);
+    this.queue = this.queue.then(async () => {
+      try {
+        const next = await this.send(text, this.lastId);
+        this.update(next);
+        this.markRead();
+      } catch (error) {
+        li.remove();
+        this.pending = this.pending.filter(p => p !== entry);
+        if (!this.input.value) this.input.value = text;
+        this.fail(error.message);
+      }
+    });
   }
 
   fail(message) {

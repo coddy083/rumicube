@@ -2089,3 +2089,4 @@ dialog::backdrop {
   .chat-form input { font-size: 16px; min-height: 44px; }
 }
 @media (forced-colors: active) { .chat-badge { border: 1px solid CanvasText; } }
+.chat-log li.pending { opacity: .6; }

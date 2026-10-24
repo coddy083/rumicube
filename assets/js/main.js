@@ -13,7 +13,7 @@ import {
   esc,
   btn
 } from './views.js?v=20261024-palette1';
-import {Chat} from './chat.js?v=20261024-chat1';
+import {Chat} from './chat.js?v=20261024-chat2';
 
 const api = new Api();
 const main = document.querySelector('#main'),
