@@ -1,0 +1,58 @@
+name: Deploy to FTP
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-ftp
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Check FTP password
+        env:
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          if [ -z "$FTP_PASSWORD" ]; then
+            echo '::error::Add the FTP_PASSWORD repository secret before deploying.'
+            exit 1
+          fi
+
+      - name: Prepare website files
+        run: |
+          mkdir -p deploy/_private
+          cp index.php .htaccess deploy/
+          cp -R api assets deploy/
+          cp _private/.htaccess _private/index.php deploy/_private/
+          cp -R _private/app deploy/_private/
+          find deploy -name .DS_Store -delete
+
+      - name: Upload to public_html
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        with:
+          server: rumi00.iwinv.net
+          username: rumi00
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          port: 21
+          local-dir: ./deploy/
+          server-dir: public_html/
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            _private/storage/**

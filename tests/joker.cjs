@@ -1,0 +1,26 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const source = fs.readFileSync(path.join(__dirname,'../assets/js/board.js'),'utf8');
+(async () => {
+  const {Editor, resolveGroup, validateGroup} = await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+  const red = n => ({id:`red-${n}-0`,color:'red',number:n,joker:false});
+  const joker = {id:'joker-0',joker:true,asColor:'blue',asNumber:1};
+  assert.equal(validateGroup([red(10),joker,red(12)]),'연속');
+  assert.equal(resolveGroup([red(10),joker,red(12)]).values.get(joker.id).number,11);
+  assert.equal(validateGroup([red(7),{id:'blue-7-0',color:'blue',number:7},joker]),'그룹');
+  assert.equal(validateGroup([red(13),red(1),joker]),null);
+  assert.equal(validateGroup([red(1),{id:'red-1-1',color:'red',number:1},joker]),null);
+  const initial = {revision:1,rack:[red(10),red(12)],board:[{id:'old',tiles:[red(7),{id:'blue-7-0',color:'blue',number:7},{id:'black-7-0',color:'black',number:7},joker]}]};
+  const editor = new Editor(initial);
+  editor.moveTiles(['red-10-0','red-12-0'],{zone:'new'});
+  const target = editor.board[1].id;
+  editor.moveTiles([joker.id],{zone:'group',groupId:target,index:1});
+  assert.equal(validateGroup(editor.board[1].tiles),'연속');
+  assert.deepEqual(editor.board[1].tiles.map(t=>t.id),['red-10-0','joker-0','red-12-0']);
+  assert.deepEqual(editor.serialize().board[1].tiles[1],{id:'joker-0'});
+  assert.throws(()=>{editor.selected=['joker-0'];editor.toRack();},/손패/);
+  editor.undo();
+  assert.deepEqual(editor.board[0].tiles,initial.board[0].tiles);
+  console.log('PASS Automatic wildcard validation, movement, sorting, serialization, conservation and undo');
+})().catch(e=>{console.error(e);process.exitCode=1;});

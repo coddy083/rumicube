@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-20",
+  "framework": "PHP + vanilla JavaScript",
+  "fonts": [
+    "Pretendard",
+    "Space Grotesk"
+  ],
+  "tokens": "assets/css/tokens.css",
+  "theme": "Cobalt",
+  "motion": "CSS transform only, reduced-motion supported",
+  "scope": "mobile adaptation; preserve existing brand and game structure"
+}

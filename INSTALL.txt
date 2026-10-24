@@ -1,0 +1,14 @@
+타일클럽 통신 복구·저장소 수정본
+
+원인: assets/js/api.js 누락으로 JavaScript 모듈 로딩 실패.
+확인: 실제 서버 404 및 브라우저에서 동일 멈춤 재현. 누락 파일 복원 후 시작 화면과 연결됨 표시 확인.
+
+압축을 풀어 안의 index.php, api 폴더, assets 폴더 등을 public_html 안에 덮어쓰세요.
+public_html 안에 별도 tile-club 폴더를 만들지 마세요.
+기존 _private/storage/rooms 게임 데이터는 지우지 마세요.
+파일 관리 도구에서 모든 폴더를 덮어쓰면 됩니다. 업로드 후 새로고침하세요.
+
+이번 업데이트는 api/index.php와 _private/app의 공통 코드가 함께 필요합니다.
+웹 요청을 잠시 중지하고 진행 중인 요청이 끝난 뒤 코드 전체를 교체하세요.
+루트 .htaccess와 _private/.htaccess도 포함해야 합니다.
+자세한 설치·기존 잠금 파일 정리 방법은 INSTALL.md를 참고하세요.

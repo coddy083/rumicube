@@ -1,0 +1,6 @@
+.DS_Store
+_private/storage/
+deploy/
+.env
+.env.*
+!.env.example

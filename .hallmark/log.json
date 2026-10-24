@@ -1,0 +1,19 @@
+[
+  {
+    "date": "2026-10-20",
+    "macrostructure": "Workbench",
+    "theme": "Cobalt",
+    "enrichment": "none",
+    "scope": "mobile hand density refinement",
+    "brief": "Compact two-row hand; at least 14 visible tiles at 320–768px; preserve touch dragging and horizontal scrolling"
+  },
+  {
+    "date": "2026-10-20",
+    "macrostructure": "Workbench",
+    "theme": "Cobalt",
+    "enrichment": "none",
+    "scope": "responsive adaptation",
+    "brief": "Portrait mobile game: compact participants, bounded scrolling hand, larger touch targets",
+    "preserved": "Existing macrostructure, nav, footer and theme; no brand redesign"
+  }
+]
